@@ -1,16 +1,23 @@
 import torch
 from architecture import PointNetClassification
-from utils import prepare_data
 import torch.optim.lr_scheduler
+import os
 
 # test dimension
 if __name__ == '__main__':
+
+    data_dir = '../dataset/ModelNet40'
+    # catset = set([os.path.join(f) for f in os.listdir(dataset)])
+    # cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
+
     print 'Loading data...'
-    # prepare data
-    # data: num_images x num_points x 3
+    # load data
+    # data: num_images x 3 x num_points
     # labels: num_images
-    data_train, labels_train = prepare_data(dataset='../dataset/ModelNet40', temp=320, dataset_type='train')
-    data_test, labels_test = prepare_data(dataset='../dataset/ModelNet40', temp=80, dataset_type='test')
+    data_train = torch.load(os.path.join(data_dir, 'data_train.pth'))
+    data_test = torch.load(os.path.join(data_dir, 'data_test.pth'))
+    labels_train = torch.load(os.path.join(data_dir, 'labels_train.pth'))
+    labels_test = torch.load(os.path.join(data_dir, 'labels_test.pth'))
 
     num_images = data_train.shape[0]
     X_train = data_train[num_images/5:, :, :]
@@ -47,8 +54,7 @@ if __name__ == '__main__':
     #     t_test = torch.autograd.Variable(torch.LongTensor(labels_test))
 
 
-    N = 2048
-    pn_classify = PointNetClassification(N, 40)
+    pn_classify = PointNetClassification(num_points=data_train.shape[-1], num_classes=40)
     if torch.cuda.is_available():
         pn_classify = pn_classify.cuda()
 
@@ -83,8 +89,10 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
+            print loss.data[0]
             loss_epoch += loss.data[0] / batch_num
-        print epoch, ':', loss_epoch
+
+        # print epoch, ':', loss_epoch
 
 
 

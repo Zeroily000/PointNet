@@ -4,8 +4,7 @@ import numpy as np
 import torch
 import os
 import random
-
-
+import time
 
 def read_off(fpath, num_points):
     '''
@@ -26,15 +25,13 @@ def read_off(fpath, num_points):
     return points
 
 
-def prepare_data(dataset, temp = 320, dataset_type = '', num_points = 2048, reshuffle = True):
+def prepare_data(dataset, cat2lab, dataset_type = '', num_points = 2048, reshuffle = True):
     '''
     Load all data
     :param dataset: folder path
     :param batch_size:
     :return: data: BxNx3 list of string; label: BxN
     '''
-
-
 
     # load train file paths
     # paths = [os.path.join(root, filename) for root, _, files in os.walk(dataset, topdown=False) for filename in files if dataset_type in root]
@@ -46,16 +43,16 @@ def prepare_data(dataset, temp = 320, dataset_type = '', num_points = 2048, resh
         random.seed(19260817)
         random.shuffle(paths)
 
-    data, cats = [], []
+    data, labels = [], []
     for root, filename in paths:
         points = read_off(os.path.join(root, filename), num_points)
         if len(points) != 0:
             data.append(points)
-            cats.append(root.split('/')[-2])
+            labels.append(cat2lab[root.split('/')[-2]])
 
         # delete later
-        if len(data) >= temp:
-            break
+        # if len(data) >= temp:
+        #     break
         # end
     data = torch.FloatTensor(data)  # num_images x num_points x 3
 
@@ -67,9 +64,7 @@ def prepare_data(dataset, temp = 320, dataset_type = '', num_points = 2048, resh
 
 
     # maps category(string) to label(int)
-    catset = set([os.path.join(f) for f in os.listdir(dataset)])
-    cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
-    labels = torch.LongTensor([cat2lab[c] for c in cats])  # num_images
+    # labels = torch.LongTensor([cat2lab[c] for c in cats])  # num_images
 
 
     # paths_test = [os.path.join(root, filename) for root, _, files in os.walk(dataset, topdown=False) for filename in
@@ -134,7 +129,7 @@ def prepare_data(dataset, temp = 320, dataset_type = '', num_points = 2048, resh
 
 
     # return torch.FloatTensor(data_train), torch.FloatTensor(data_test), torch.LongTensor(labels_train), torch.LongTensor(labels_test)
-    return data.transpose(-1, -2), labels
+    return data.transpose(-1, -2), torch.LongTensor(labels)
 
 def data_visualization(points):
     fig = plt.figure()
@@ -143,5 +138,25 @@ def data_visualization(points):
     plt.show()
 
 if __name__ == '__main__':
-    data_train, labels_train = prepare_data('../dataset/ModelNet40', dataset_type='train')
-    data_visualization(np.array(data_train[0][1], dtype=float).T)
+    dataset = '../dataset/ModelNet40'
+    catset = set([os.path.join(f) for f in os.listdir(dataset)])
+    cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
+
+
+    since = time.time()
+    data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train')
+    data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test')
+    print 'load raw data takes', time.time() - since, 's'
+
+    since = time.time()
+    torch.save(data_train, os.path.join(dataset, 'data_train.pth'))
+    torch.save(labels_train, os.path.join(dataset, 'labels_train.pth'))
+
+    torch.save(data_test, os.path.join(dataset, 'data_test.pth'))
+    torch.save(labels_test, os.path.join(dataset, 'labels_test.pth'))
+    print 'save data takes', time.time() - since, 's'
+
+    # since = time.time()
+    # data_test = torch.load(os.path.join(dataset, 'data_train.pth'))
+    # print 'load torch.tensor data takes', time.time() - since, 's'
+    # data_visualization(np.array(data_train[0][1], dtype=float).T)

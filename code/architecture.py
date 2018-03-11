@@ -1,16 +1,15 @@
 import torch
 
-
 class TNet(torch.nn.Module):
     # Transformation Network T-Net
-    def __init__(self, num_points, K):
+    def __init__(self, num_points, dim_feat):
         super(TNet, self).__init__()
         # input size: Bx3xN
         # output size: BxKxK, K = 3 or 64
-        self.K = K
+        self.K = dim_feat
 
         self.features = torch.nn.Sequential(
-            torch.nn.Conv1d(in_channels=K, out_channels=64, kernel_size=1),
+            torch.nn.Conv1d(in_channels=dim_feat, out_channels=64, kernel_size=1),
             torch.nn.BatchNorm1d(64),
             torch.nn.ReLU(inplace=True),
 
@@ -34,7 +33,7 @@ class TNet(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=256),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Linear(in_features=256, out_features=K*K, bias=True)
+            torch.nn.Linear(in_features=256, out_features=dim_feat**2, bias=True)
         )  # BxK^2
 
         # initialize with 0 so that the initial output is identity
@@ -106,7 +105,7 @@ class Feature3D(torch.nn.Module):
 
 class PointNetClassification(torch.nn.Module):
     # PointNet Classification
-    def __init__(self, num_points, k):
+    def __init__(self, num_points, num_classes):
         super(PointNetClassification, self).__init__()
         # input size: Bx3xN
         # output size: # Bxk
@@ -122,7 +121,7 @@ class PointNetClassification(torch.nn.Module):
             torch.nn.ReLU(inplace=True),
             torch.nn.Dropout(p=0.7),
 
-            torch.nn.Linear(in_features=256, out_features=k, bias=True)
+            torch.nn.Linear(in_features=256, out_features=num_classes, bias=True)
         )  # Bxk
 
     def forward(self, x):
@@ -138,6 +137,8 @@ class PointNetSegmentation(torch.nn.Module):
         super(PointNetSegmentation, self).__init__()
         # input size: Bx3xN
         # output size: # BxNxm
+        # torch.manual_seed(19260817)
+        # torch.cuda.manual_seed_all(19260817)
         self.features = Feature3D(num_points)
 
         self.classifier = torch.nn.Sequential(
