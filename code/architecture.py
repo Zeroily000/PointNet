@@ -2,7 +2,7 @@ import torch
 
 class TNet(torch.nn.Module):
     # Transformation Network T-Net
-    def __init__(self, num_points, dim_feat):
+    def __init__(self, dim_feat):
         super(TNet, self).__init__()
         # input size: Bx3xN
         # output size: BxKxK, K = 3 or 64
@@ -21,8 +21,8 @@ class TNet(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=1024),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.MaxPool1d(kernel_size=num_points)
-        )  # Bx1024x1
+            # torch.nn.MaxPool1d(kernel_size=num_points)
+        )  # Bx1024xN
 
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
@@ -42,7 +42,8 @@ class TNet(torch.nn.Module):
         # print self.classifier[-1].weight.data
 
     def forward(self, x):
-        x = self.features(x)  # Bx1024x1
+        # x = self.features(x)  # Bx1024x1
+        x = self.features(x).max(dim=-1, keepdim=True)[0]  # Bx1024x1
         x = torch.squeeze(x)  # Bx1024
         x = self.classifier(x)  # BxK^2
 
@@ -56,13 +57,12 @@ class TNet(torch.nn.Module):
 
 class Feature3D(torch.nn.Module):
     # Feature Extractor
-    def __init__(self, num_points):
+    def __init__(self):
         super(Feature3D, self).__init__()
         # input size: Bx3xN
         # output size: f1: Bx1024; f2: BxNx1088
-        self.N = num_points
 
-        self.T1 = TNet(num_points, 3)
+        self.T1 = TNet(3)
         self.feature1 = torch.nn.Sequential(
             torch.nn.Conv1d(in_channels=3, out_channels=64, kernel_size=1),
             torch.nn.BatchNorm1d(num_features=64),
@@ -73,7 +73,7 @@ class Feature3D(torch.nn.Module):
             torch.nn.ReLU(inplace=True)
         )  # Bx64xN
 
-        self.T2 = TNet(num_points, 64)
+        self.T2 = TNet(64)
         self.feature2 = torch.nn.Sequential(
             torch.nn.Conv1d(in_channels=64, out_channels=64, kernel_size=1),
             torch.nn.BatchNorm1d(num_features=64),
@@ -87,29 +87,30 @@ class Feature3D(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=1024),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.MaxPool1d(kernel_size=num_points)
-        )  # Bx1024x1
+            # torch.nn.MaxPool1d(kernel_size=num_points)
+        )  # Bx1024xN
 
     def forward(self, x):
+        N = x.data.shape[-1]
         A1 = self.T1(x)  # Bx3x3
         x = torch.bmm(A1, x)  # Bx3xN
         x = self.feature1(x)  # Bx64xN
 
         A2 = self.T2(x)  # Bx64x64
         feat = torch.bmm(A2, x)  # Bx64xN
-        f1 = self.feature2(feat)  # Bx1024x1
-        f2 = torch.cat((feat, f1.repeat(1, 1, self.N)), dim=1)  # Bx1088xN
+        f1 = self.feature2(feat).max(dim=-1, keepdim=True)[0]  # Bx1024x1
+        f2 = torch.cat((feat, f1.repeat(1, 1, N)), dim=1)  # Bx1088xN
 
         return f1, f2
 
 
 class PointNetClassification(torch.nn.Module):
     # PointNet Classification
-    def __init__(self, num_points, num_classes):
+    def __init__(self, num_classes):
         super(PointNetClassification, self).__init__()
         # input size: Bx3xN
         # output size: # Bxk
-        self.features = Feature3D(num_points)
+        self.features = Feature3D()
 
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
@@ -133,13 +134,13 @@ class PointNetClassification(torch.nn.Module):
 
 class PointNetSegmentation(torch.nn.Module):
     # PointNet Segmentation
-    def __init__(self, num_points, m):
+    def __init__(self, m):
         super(PointNetSegmentation, self).__init__()
         # input size: Bx3xN
         # output size: # BxNxm
         # torch.manual_seed(19260817)
         # torch.cuda.manual_seed_all(19260817)
-        self.features = Feature3D(num_points)
+        self.features = Feature3D()
 
         self.classifier = torch.nn.Sequential(
             torch.nn.Conv1d(in_channels=1088, out_channels=512, kernel_size=1),
@@ -168,14 +169,14 @@ if __name__ == '__main__':
     B = 32
     N = 1000
     sim_data = torch.autograd.Variable(torch.rand(B, 3, N))
-    tnet = TNet(N, 3)
+    tnet = TNet(3)
     out = tnet(sim_data)
     print 'T:', out.size()
 
-    clsnet = PointNetClassification(N, 5)
+    clsnet = PointNetClassification(5)
     out = clsnet(sim_data)
     print 'Classifier:', out.size()
 
-    segnet = PointNetSegmentation(N, 5)
+    segnet = PointNetSegmentation(5)
     out = segnet(sim_data)
     print 'Segment:', out.size()

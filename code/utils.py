@@ -144,8 +144,8 @@ if __name__ == '__main__':
 
 
     since = time.time()
-    data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train')
-    data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test')
+    data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=2048, reshuffle=True)
+    data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=2048, reshuffle=True)
     print 'load raw data takes', time.time() - since, 's'
 
     since = time.time()

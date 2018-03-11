@@ -54,7 +54,7 @@ if __name__ == '__main__':
     #     t_test = torch.autograd.Variable(torch.LongTensor(labels_test))
 
 
-    pn_classify = PointNetClassification(num_points=data_train.shape[-1], num_classes=40)
+    pn_classify = PointNetClassification(num_classes=40)
     if torch.cuda.is_available():
         pn_classify = pn_classify.cuda()
 
@@ -89,10 +89,13 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            print loss.data[0]
             loss_epoch += loss.data[0] / batch_num
 
-        # print epoch, ':', loss_epoch
+            if bn%100 == 0:
+                print loss.data[0]
+
+
+        print epoch, ':', loss_epoch
 
 
 
