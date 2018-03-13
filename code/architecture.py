@@ -1,5 +1,6 @@
 import torch
 
+
 class TNet(torch.nn.Module):
     # Transformation Network T-Net
     def __init__(self, dim_feat):
@@ -9,15 +10,15 @@ class TNet(torch.nn.Module):
         self.K = dim_feat
 
         self.features = torch.nn.Sequential(
-            torch.nn.Conv1d(in_channels=dim_feat, out_channels=64, kernel_size=1),
-            torch.nn.BatchNorm1d(64),
+            torch.nn.Conv1d(in_channels=dim_feat, out_channels=64, kernel_size=1, bias=True),
+            torch.nn.BatchNorm1d(num_features=64),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1),
-            torch.nn.BatchNorm1d(128),
+            torch.nn.Conv1d(in_channels=64, out_channels=128, kernel_size=1, bias=True),
+            torch.nn.BatchNorm1d(num_features=128),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Conv1d(in_channels=128, out_channels=1024, kernel_size=1),
+            torch.nn.Conv1d(in_channels=128, out_channels=1024, kernel_size=1, bias=True),
             torch.nn.BatchNorm1d(num_features=1024),
             torch.nn.ReLU(inplace=True),
 
@@ -33,12 +34,13 @@ class TNet(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=256),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Linear(in_features=256, out_features=dim_feat**2, bias=True)
+            torch.nn.Linear(in_features=256, out_features=dim_feat ** 2, bias=True)
         )  # BxK^2
 
         # initialize with 0 so that the initial output is identity
         torch.nn.init.constant(self.classifier[-1].weight.data, 0)
-        torch.nn.init.constant(self.classifier[-1].bias.data, 0)
+        # torch.nn.init.constant(self.classifier[-1].bias.data, 0)
+        self.classifier[-1].bias.data = torch.eye(dim_feat).view(1, -1).squeeze()
         # print self.classifier[-1].weight.data
 
     def forward(self, x):
@@ -48,10 +50,11 @@ class TNet(torch.nn.Module):
         x = self.classifier(x)  # BxK^2
 
         # x should be initialized as identity matrix
-        x_init = torch.autograd.Variable(torch.eye(self.K))
-        if torch.cuda.is_available():
-            x_init = x_init.cuda()
-        x = x.view(-1, self.K, self.K) + x_init  # BxKxK
+        # x_init = torch.autograd.Variable(torch.eye(self.K))
+        # if torch.cuda.is_available():
+        #     x_init = x_init.cuda()
+        # x = x.view(-1, self.K, self.K) + x_init  # BxKxK
+        x = x.view(-1, self.K, self.K)  # BxKxK
         return x
 
 
@@ -116,6 +119,7 @@ class PointNetClassification(torch.nn.Module):
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
             torch.nn.BatchNorm1d(num_features=512),
             torch.nn.ReLU(inplace=True),
+            torch.nn.Dropout(p=0.7),
 
             torch.nn.Linear(in_features=512, out_features=256, bias=True),
             torch.nn.BatchNorm1d(num_features=256),
@@ -170,13 +174,20 @@ if __name__ == '__main__':
     N = 1000
     sim_data = torch.autograd.Variable(torch.rand(B, 3, N))
     tnet = TNet(3)
+    clsnet = PointNetClassification(5)
+    segnet = PointNetSegmentation(5)
+
+    if torch.cuda.is_available():
+        sim_data = sim_data.cuda()
+        tnet = tnet.cuda()
+        clsnet = clsnet.cuda()
+        segnet = segnet.cuda()
+
     out = tnet(sim_data)
     print 'T:', out.size()
 
-    clsnet = PointNetClassification(5)
     out = clsnet(sim_data)
     print 'Classifier:', out.size()
 
-    segnet = PointNetSegmentation(5)
     out = segnet(sim_data)
     print 'Segment:', out.size()
