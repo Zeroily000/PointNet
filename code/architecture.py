@@ -104,7 +104,7 @@ class Feature3D(torch.nn.Module):
         f1 = self.feature2(feat).max(dim=-1, keepdim=True)[0]  # Bx1024x1
         f2 = torch.cat((feat, f1.repeat(1, 1, N)), dim=1)  # Bx1088xN
 
-        return f1, f2
+        return f1, f2, A1, A2
 
 
 class PointNetClassification(torch.nn.Module):
@@ -119,21 +119,21 @@ class PointNetClassification(torch.nn.Module):
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
             torch.nn.BatchNorm1d(num_features=512),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Dropout(p=0.7),
+            torch.nn.Dropout(p=0.3),
 
             torch.nn.Linear(in_features=512, out_features=256, bias=True),
             torch.nn.BatchNorm1d(num_features=256),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Dropout(p=0.7),
+            torch.nn.Dropout(p=0.3),
 
             torch.nn.Linear(in_features=256, out_features=num_classes, bias=True)
         )  # Bxk
 
     def forward(self, x):
-        x, _ = self.features(x)  # Bx1024x1
+        x, _, A1, A2 = self.features(x)  # Bx1024x1
         x = torch.squeeze(x, 2)
         x = self.classifier(x)  # Bxk
-        return x
+        return x, A1, A2
 
 
 class PointNetSegmentation(torch.nn.Module):
@@ -163,9 +163,9 @@ class PointNetSegmentation(torch.nn.Module):
         )  # BxmxN
 
     def forward(self, x):
-        _, x = self.features(x)  # Bx1088xN
+        _, x, A1, A2 = self.features(x)  # Bx1088xN
         x = self.classifier(x)  # BxmxN
-        return x.transpose(1, 2)
+        return x.transpose(1, 2), A1, A2
 
 
 # test dimension
@@ -186,8 +186,8 @@ if __name__ == '__main__':
     out = tnet(sim_data)
     print 'T:', out.size()
 
-    out = clsnet(sim_data)
+    out, _, _ = clsnet(sim_data)
     print 'Classifier:', out.size()
 
-    out = segnet(sim_data)
+    out, _, _ = segnet(sim_data)
     print 'Segment:', out.size()
