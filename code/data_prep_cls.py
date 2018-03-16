@@ -39,11 +39,11 @@ def prepare_data(dataset, cat2lab, dataset_type, num_points = 1024):
                 f.close()
 
         mesh = trimesh.load(file_dir)
-        samples = sample_surface(mesh, num_points)[0] # num_points x 3
+        samples = sample_surface(mesh, num_points)[0]  # num_points x 3
         data.append(samples)
         labels.append(cat2lab[root.split('/')[-2]])
 
-    data = np.array(data)# np.array: num_images x num_points x 3
+    data = np.array(data)  # np.array: num_images x num_points x 3
 
     # zero-center
     data -= np.mean(data, axis=1, keepdims=True)
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
 
     since = time.time()
-    print 'Processing...' # takes about 17 minutes
+    print 'Processing...'  # takes about 17 minutes
     data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=1024)
     data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=1024)
     print 'Done'
@@ -71,5 +71,3 @@ if __name__ == '__main__':
     np.savez(os.path.join(dataset, 'data_test'), data=data_test, labels=labels_test)
     time_elapsed = time.time() - since
     print 'Preparing data takes {:.0f}m {:.0f}s'.format(time_elapsed / 60, time_elapsed % 60)
-
-

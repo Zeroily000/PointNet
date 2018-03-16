@@ -9,12 +9,20 @@ import time
 import random
 
 def prepare_data(dataset, area_test = 'Area_6'):
+    '''
+
+    :param dataset:
+    :param area_test:
+    :return: data: np.array, num_images x num_points x 9
+    :return: labels: np.array, num_images x num_points
+    '''
     files = [os.path.join(dataset, f) for f in os.listdir(dataset) if '.h5' in f]
     rooms = [line.rstrip() for line in open( os.path.join(dataset, 'room_filelist.txt'))]
     random.shuffle(files)
 
     data = np.concatenate([h5py.File(h5)['data'][:] for h5 in files], axis=0)
     labels = np.concatenate([h5py.File(h5)['label'][:] for h5 in files], axis=0)
+
     # data, labels = [], []
     # for h5 in files:
     #     f = h5py.File(h5)
@@ -36,7 +44,9 @@ def prepare_data(dataset, area_test = 'Area_6'):
 
 
 if __name__ == '__main__':
-    dataset = '../dataset/indoor3d_sem_seg_hdf5_data'
+    random.seed(19260817)
+    np.random.seed(19260817)
+    dataset = '../dataset/S3DIS'
     area_test = 'Area_6'
     since = time.time()
     data_train, labels_train, data_test, labels_test = prepare_data(dataset, area_test='Area_6')

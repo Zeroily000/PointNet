@@ -2,7 +2,7 @@ import torch
 import torch.optim.lr_scheduler
 import numpy as np
 import os, time
-
+import sklearn
 from architecture import PointNetClassification
 
 def rot_mat(num_images):
@@ -71,16 +71,6 @@ def eval_loss(X, t, classifier, criterion):
 def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
                      batch_size=32, step_size=20, annealing=0.5,
                      num_epochs=500, early_stop=3):
-    pn_classify = PointNetClassification(num_classes=40)
-    if torch.cuda.is_available():
-        pn_classify = pn_classify.cuda()
-
-    # model_best = copy.deepcopy(pn_classify.state_dict())
-
-    optimizer = torch.optim.Adam(params=pn_classify.parameters(), lr=learning_rate)
-    criterion = torch.nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=annealing)
-
 
     # load data
     # data: np.array, num_images x 3 x num_points
@@ -88,9 +78,9 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     print 'Loading data...',
     data_dir = '../dataset/ModelNet40'
     f = np.load(os.path.join(data_dir, 'data_train.npz'))
-    data, labels = f['data'], f['labels']
-    # data = f['data']
-    # labels = f['labels']
+    data, labels = sklearn.utils.shuffle(f['data'], f['labels'])
+
+    in_features = data.shape[-1]
 
     # for cpu test
     if not torch.cuda.is_available():
@@ -114,6 +104,16 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
 
     num_batches = X_train.shape[0] / batch_size
     print 'Done\n'
+
+    pn_classify = PointNetClassification(in_features=in_features, num_classes=40)
+    if torch.cuda.is_available():
+        pn_classify = pn_classify.cuda()
+
+    # model_best = copy.deepcopy(pn_classify.state_dict())
+
+    optimizer = torch.optim.Adam(params=pn_classify.parameters(), lr=learning_rate)
+    criterion = torch.nn.CrossEntropyLoss()
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=annealing)
 
     loss_train = [eval_loss(X_train, t_train, pn_classify, criterion)]
     loss_valid = [eval_loss(X_valid, t_valid, pn_classify, criterion)]
@@ -142,7 +142,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
             X_batch = X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :]
             t_batch = t_train[idx[bn * batch_size: bn * batch_size + batch_size]]
 
-            I1 = torch.autograd.Variable(torch.eye(3))
+            I1 = torch.autograd.Variable(torch.eye(in_features))
             I2 = torch.autograd.Variable(torch.eye(64))
 
             # data augmentation

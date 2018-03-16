@@ -10,7 +10,7 @@ loss_valid = loss['valid']
 acc = np.load(dir + 'accuracy.npz')
 acc_train = acc['train']
 acc_valid = acc['valid']
-print acc_valid[-1]
+# print acc_valid[-1]
 plt.figure()
 plt.plot(range(len(loss_train)), loss_train, label='train')
 plt.plot(range(len(loss_valid)), loss_valid, label='validation')
