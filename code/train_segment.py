@@ -2,39 +2,7 @@ import torch
 import torch.optim.lr_scheduler
 import numpy as np
 import os, time
-
-from architecture import PointNetClassification
-
-def rot_mat(num_images):
-    # roll = torch.Tensor(num_images, 1, 1).uniform_(0, math.pi)
-    # Rx = torch.cat(
-    #     (torch.cat((torch.ones(num_images, 1, 1), torch.zeros(num_images, 1, 1), torch.zeros(num_images, 1, 1)), 2),
-    #      torch.cat((torch.zeros(num_images, 1, 1), torch.cos(roll), -torch.sin(roll)), 2),
-    #      torch.cat((torch.zeros(num_images, 1, 1), torch.sin(roll), torch.cos(roll)), 2)), 1)
-    #
-    # pitch = torch.Tensor(num_images, 1, 1).uniform_(-np.pi, np.pi)
-    # Ry = torch.cat((torch.cat((torch.cos(pitch), torch.zeros(num_images, 1, 1), torch.sin(pitch)), 2),
-    #                 torch.cat(
-    #                     (torch.zeros(num_images, 1, 1), torch.ones(num_images, 1, 1), torch.zeros(num_images, 1, 1)),
-    #                     2),
-    #                 torch.cat((-torch.sin(pitch), torch.zeros(num_images, 1, 1), torch.cos(pitch)), 2)), 1)
-    #
-    # yaw = torch.Tensor(num_images, 1, 1).uniform_(-np.pi, np.pi)
-    # Rz = torch.cat((torch.cat((torch.cos(yaw), -torch.sin(yaw), torch.zeros(num_images, 1, 1)), 2),
-    #                 torch.cat((torch.sin(yaw), torch.cos(yaw), torch.zeros(num_images, 1, 1)), 2),
-    #                 torch.cat((torch.zeros(num_images, 1, 1), torch.zeros(num_images, 1, 1), torch.ones(num_images, 1, 1)),2)), 1)
-
-    # return torch.bmm(Rx, torch.bmm(Ry, Rz))
-    pitch = np.random.uniform(-np.pi, np.pi, num_images)
-    Ry = np.zeros((num_images, 3, 3), dtype=np.float32)
-    Ry[:, 0, 0] = np.cos(pitch)
-    Ry[:, 0, 2] = np.sin(pitch)
-    Ry[:, 2, 2] = Ry[:, 0, 0]
-    Ry[:, 2, 0] = -Ry[:, 0, 2]
-    Ry[:, 1, 1] = 1.
-
-    return torch.from_numpy(Ry)
-
+from architecture import PointNetSegmentation
 
 def eval_acc(X, t, classifier):
     classifier.train(False)
@@ -68,16 +36,17 @@ def eval_loss(X, t, classifier, criterion):
     return loss / num_batches
 
 
-def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
+def train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
                      batch_size=32, step_size=20, annealing=0.5,
                      num_epochs=500, early_stop=3):
-    pn_classify = PointNetClassification(num_classes=40)
+    pn_segment = PointNetSegmentation(num_classes=13)
     if torch.cuda.is_available():
-        pn_classify = pn_classify.cuda()
+        pn_segment = pn_segment.cuda()
 
     # model_best = copy.deepcopy(pn_classify.state_dict())
 
-    optimizer = torch.optim.Adam(params=pn_classify.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.Adam(params=pn_classify.parameters(), lr=learning_rate, weight_decay=regularization)
+    optimizer = torch.optim.Adam(params=pn_segment.parameters(), lr=learning_rate)
     criterion = torch.nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=annealing)
 
@@ -86,11 +55,9 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     # data: np.array, num_images x 3 x num_points
     # labels: np.array, num_images
     print 'Loading data...',
-    data_dir = '../dataset/ModelNet40'
+    data_dir = '../dataset/indoor3d_sem_seg_hdf5_data'
     f = np.load(os.path.join(data_dir, 'data_train.npz'))
     data, labels = f['data'], f['labels']
-    # data = f['data']
-    # labels = f['labels']
 
     # for cpu test
     if not torch.cuda.is_available():
@@ -115,10 +82,10 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     num_batches = X_train.shape[0] / batch_size
     print 'Done\n'
 
-    loss_train = [eval_loss(X_train, t_train, pn_classify, criterion)]
-    loss_valid = [eval_loss(X_valid, t_valid, pn_classify, criterion)]
-    acc_train = [eval_acc(X_train, t_train, pn_classify)]
-    acc_valid = [eval_acc(X_valid, t_valid, pn_classify)]
+    loss_train = [eval_loss(X_train, t_train, pn_segment, criterion)]
+    loss_valid = [eval_loss(X_valid, t_valid, pn_segment, criterion)]
+    acc_train = [eval_acc(X_train, t_train, pn_segment)]
+    acc_valid = [eval_acc(X_valid, t_valid, pn_segment)]
     print 'Epoch {}/{}'.format(0, num_epochs)
     print '-' * 10
     print 'Train Loss: {:.8f} Accuracy: {:.4f}'.format(loss_train[-1], acc_train[-1])
@@ -137,31 +104,13 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
             idx = torch.from_numpy(np.arange(X_train.shape[0]))
 
         scheduler.step()
-        pn_classify.train(True)
+        pn_segment.train(True)
         for bn in xrange(num_batches):
             X_batch = X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :]
             t_batch = t_train[idx[bn * batch_size: bn * batch_size + batch_size]]
-
             I1 = torch.autograd.Variable(torch.eye(3))
             I2 = torch.autograd.Variable(torch.eye(64))
 
-            # data augmentation
-            R = rot_mat(batch_size)
-            noise = torch.from_numpy(np.clip(np.random.normal(loc=0.0, scale=0.02, size=X_batch.shape), -0.05, 0.05).astype(np.float32))
-            # X_batch = torch.bmm(R, X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :])
-            # noise = torch.normal(means=torch.zeros(X_batch.size()), std=0.02 * torch.ones(X_batch.size()))
-            # noise[noise > 0.05] = 0.05
-            # noise[noise < -0.05] = -0.05
-            #             X_batch = torch.autograd.Variable(X_batch + noise)
-
-            X_batch = torch.autograd.Variable(torch.cat((X_batch, torch.bmm(R, X_batch) + noise), 0))
-            t_batch = torch.autograd.Variable(t_batch.repeat(2))
-
-
-            # X_batch = torch.autograd.Variable(X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :])
-            # t_batch = torch.autograd.Variable(t_train[idx[bn * batch_size: bn * batch_size + batch_size]])
-            # I1 = torch.autograd.Variable(torch.zeros(batch_size*2, 3, 3) + torch.eye(3))
-            # I2 = torch.autograd.Variable(torch.zeros(batch_size*2, 64, 64) + torch.eye(64))
             if torch.cuda.is_available():
                 X_batch = X_batch.cuda()
                 t_batch = t_batch.cuda()
@@ -169,7 +118,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
                 I2 = I2.cuda()
 
             optimizer.zero_grad()
-            y_batch, A1, A2 = pn_classify(X_batch)
+            y_batch, A1, A2 = pn_segment(X_batch)
             loss = criterion(y_batch, t_batch) + \
                    regularization * torch.sum((I1 - torch.bmm(A1, A1.transpose(1, 2))) ** 2) + \
                    regularization * torch.sum((I2 - torch.bmm(A2, A2.transpose(1, 2))) ** 2)
@@ -177,11 +126,11 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
             loss.backward()
             optimizer.step()
 
-        pn_classify.train(False)
-        loss_train.append(eval_loss(X_train, t_train, pn_classify, criterion))
-        loss_valid.append(eval_loss(X_valid, t_valid, pn_classify, criterion))
-        acc_train.append(eval_acc(X_train, t_train, pn_classify))
-        acc_valid.append(eval_acc(X_valid, t_valid, pn_classify))
+        pn_segment.train(False)
+        loss_train.append(eval_loss(X_train, t_train, pn_segment, criterion))
+        loss_valid.append(eval_loss(X_valid, t_valid, pn_segment, criterion))
+        acc_train.append(eval_acc(X_train, t_train, pn_segment))
+        acc_valid.append(eval_acc(X_valid, t_valid, pn_segment))
         print 'Epoch {}/{}'.format(epoch + 1, num_epochs)
         print '-' * 10
         print 'Train Loss: {:.8f} Accuracy: {:.4f}'.format(loss_train[-1], acc_train[-1])
@@ -191,7 +140,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
         if acc_valid[-1] > acc_best:
             acc_best = acc_valid[-1]
             # model_best = copy.deepcopy(pn_classify.state_dict())
-            torch.save(pn_classify.state_dict(), '../results/PointNet_Classifier.pt')
+            torch.save(pn_segment.state_dict(), '../results/PointNet_Classifier.pt')
             np.savez('../results/loss', train=loss_train, valid=loss_valid)
             np.savez('../results/accuracy', train=acc_train, valid=acc_valid)
 
@@ -212,7 +161,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
 if __name__ == '__main__':
     torch.manual_seed(19270817)
     torch.cuda.manual_seed_all(19270817)
-    train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
+    train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
                      batch_size=32, step_size=20, annealing=0.5,
                      num_epochs=250, early_stop=4)
 

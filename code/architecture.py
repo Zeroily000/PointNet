@@ -119,7 +119,7 @@ class PointNetClassification(torch.nn.Module):
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
             torch.nn.BatchNorm1d(num_features=512),
             torch.nn.ReLU(inplace=True),
-            torch.nn.Dropout(p=0.3),
+            # torch.nn.Dropout(p=0.3),
 
             torch.nn.Linear(in_features=512, out_features=256, bias=True),
             torch.nn.BatchNorm1d(num_features=256),
@@ -138,12 +138,12 @@ class PointNetClassification(torch.nn.Module):
 
 class PointNetSegmentation(torch.nn.Module):
     # PointNet Segmentation
-    def __init__(self, m):
+    def __init__(self, num_classes):
         super(PointNetSegmentation, self).__init__()
-        # input size: Bx3xN
-        # output size: # BxNxm
-        # torch.manual_seed(19260817)
-        # torch.cuda.manual_seed_all(19260817)
+        # input size: Bx9xN
+        # output size: # (B*N)xm
+        self.m = num_classes
+
         self.features = Feature3D()
 
         self.classifier = torch.nn.Sequential(
@@ -159,13 +159,14 @@ class PointNetSegmentation(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=128),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Conv1d(in_channels=128, out_channels=m, kernel_size=1)
+            torch.nn.Conv1d(in_channels=128, out_channels=num_classes, kernel_size=1)
         )  # BxmxN
 
     def forward(self, x):
         _, x, A1, A2 = self.features(x)  # Bx1088xN
-        x = self.classifier(x)  # BxmxN
-        return x.transpose(1, 2), A1, A2
+        x = self.classifier(x).transpose(1, 2)  # BxNxm
+        x = x.contiguous().view(-1, self.m) # (B*N)xm
+        return x, A1, A2
 
 
 # test dimension
