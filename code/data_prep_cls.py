@@ -59,15 +59,15 @@ if __name__ == '__main__':
     np.random.seed(19260817)
     dataset = '../dataset/ModelNet40'
     catset = set([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
-    cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
+    cat2lab = {c: i for c, i in zip(catset, range(len(catset)))}
 
     since = time.time()
-    print 'Processing...'  # takes about 17 minutes
+    print('Processing...')  # takes about 17 minutes
     data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=1024)
     data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=1024)
-    print 'Done'
+    print('Done')
 
     np.savez(os.path.join(dataset, 'data_train'), data=data_train, labels=labels_train)
     np.savez(os.path.join(dataset, 'data_test'), data=data_test, labels=labels_test)
     time_elapsed = time.time() - since
-    print 'Preparing data takes {:.0f}m {:.0f}s'.format(time_elapsed / 60, time_elapsed % 60)
+    print('Preparing data takes {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))

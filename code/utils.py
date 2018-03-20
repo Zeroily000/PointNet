@@ -157,7 +157,7 @@ def prepare_data(dataset, cat2lab, dataset_type = '', num_points = 1024):
     #         labels.append(cat2lab[root.split('/')[-2]])
     data, labels = [], []
     for i, (root, filename) in enumerate(paths):
-        print i
+        print(i)
 
         data.append(mesh_sample(os.path.join(root, filename), num_points))
         labels.append(cat2lab[root.split('/')[-2]])
@@ -186,12 +186,6 @@ def prepare_data(dataset, cat2lab, dataset_type = '', num_points = 1024):
     # normalize
     data /= np.max(np.linalg.norm(data, ord=2, axis=2, keepdims=True), axis=1, keepdims=True)
 
-    # # zero-center
-    # # data -= (torch.max(data, dim=-2, keepdim=True)[0] + torch.min(data, dim=-2, keepdim=True)[0])/2
-    # data -= torch.mean(data, dim=1, keepdim=True)
-    #
-    # # normalize
-    # data /= torch.max(data.norm(p=2, dim=2, keepdim=True), dim=1, keepdim=True)[0]
 
     return np.transpose(data, axes=(0, 2, 1)), np.array(labels)
 
@@ -207,22 +201,16 @@ if __name__ == '__main__':
     np.random.seed(19260817)
     dataset = '../dataset/ModelNet40'
     catset = set([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
-    cat2lab = {c: i for c, i in zip(catset, xrange(len(catset)))}
+    cat2lab = {c: i for c, i in zip(catset, range(len(catset)))}
 
 
     since = time.time()
     data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=1024)
     data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=1024)
-    print 'load raw data takes', time.time() - since, 's'
+    print('load raw data takes', time.time() - since, 's')
 
     # since = time.time()
     # np.savez(os.path.join(dataset, 'data_train'), data=data_train, labels=labels_train)
     # np.savez(os.path.join(dataset, 'data_test'), data=data_test, labels=labels_test)
-    # print 'save data takes', time.time() - since, 's'
-
-    # torch.save(data_train, os.path.join(dataset, 'data_train.pth'))
-    # torch.save(labels_train, os.path.join(dataset, 'labels_train.pth'))
-    #
-    # torch.save(data_test, os.path.join(dataset, 'data_test.pth'))
-    # torch.save(labels_test, os.path.join(dataset, 'labels_test.pth'))
+    # print('save data takes', time.time() - since, 's')
 

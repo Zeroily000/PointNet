@@ -52,6 +52,6 @@ if __name__ == '__main__':
     data_train, labels_train, data_test, labels_test = prepare_data(dataset, area_test='Area_6')
     np.savez(os.path.join(dataset, 'data_train'), data=data_train, labels=labels_train)
     np.savez(os.path.join(dataset, 'data_test'), data=data_test, labels=labels_test)
-    print time.time() - since
+    print(time.time() - since)
 
 

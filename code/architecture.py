@@ -44,7 +44,7 @@ class TNet(torch.nn.Module):
     def forward(self, x):
         # x = self.features(x)  # Bx1024x1
         x = self.features(x).max(dim=-1, keepdim=True)[0]  # Bx1024x1
-        x = torch.squeeze(x)  # Bx1024
+        x = torch.squeeze(x, 2)  # Bx1024
         x = self.classifier(x)  # BxK^2
         x = x.view(-1, self.K, self.K)  # BxKxK
         return x
@@ -157,11 +157,12 @@ class PointNetSegmentation(torch.nn.Module):
     def forward(self, x):
         _, x, A1, A2 = self.features(x)  # Bx1088xN
         x = self.classifier(x)  # BxmxN
-        x = torch.nn.functional.log_softmax(x.transpose(0, 1)).transpose(0, 1)  # BxmxN
-        B, m, N = x.data.shape
-        x = x.expand(1, B, m, N).transpose(0, 1).transpose(1, 2).transpose(2, 3).contiguous()
-        return x, A1, A2
-        # return torch.nn.functional.log_softmax(x, dim=1), A1, A2
+        # x = torch.nn.functional.log_softmax(x.transpose(0, 1)).transpose(0, 1)  # BxmxN
+        x = torch.nn.functional.log_softmax(x, dim=1)  # BxmxN
+        # B, m, N = x.data.shape
+        # x = x.expand(1, B, m, N).transpose(0, 1).transpose(1, 2).transpose(2, 3).contiguous()
+        # return x, A1, A2
+        return torch.nn.functional.log_softmax(x, dim=1), A1, A2
 
 
 # test dimension
@@ -180,11 +181,10 @@ if __name__ == '__main__':
         segnet = segnet.cuda()
 
     out = tnet(sim_data)
-    print 'T:', out.size()
+    print('T:', out.size())
 
     out, _, _ = clsnet(sim_data)
-    print 'Classifier:', out.size()
+    print('Classifier:', out.size())
 
-    sim_data = torch.transpose(sim_data, 1, 2).contiguous().view(-1, 3)
     out, _, _ = segnet(sim_data)
-    print 'Segment:', out.size()
+    print('Segment:', out.size())

@@ -105,8 +105,94 @@
 #         t1 = sample_surface(mesh, 1024)[0]
 #         f.close()
 #
+
+
+# data_dir = '../dataset/S3DIS'
+# f = np.load(os.path.join(data_dir, 'data_train.npz'))
+# data, labels = f['data'], f['labels']
+
+# import torch
+# import torch.optim.lr_scheduler
+# import numpy as np
+# import os, time
+# import sklearn
+# from architecture import PointNetSegmentation
 #
-import torch
-print torch.__version__
+#
+# torch.manual_seed(19270817)
+# torch.cuda.manual_seed_all(19270817)
+#
+#
+#
+#
+# if __name__ == '__main__':
+#     # load data
+#     # data: np.array, num_images x num_points x 9
+#     # labels: np.array, num_images x num_points
+#     print('Loading data... ', end='')
+#     data_dir = '../dataset/S3DIS'
+#     f = np.load(os.path.join(data_dir, 'data_train.npz'))
+#     # data, labels = f['data'], f['labels']
+#     data, labels = sklearn.utils.shuffle(f['data'], f['labels'])
+#     in_features = data.shape[-1]
+#
+#     # zero-center xyz and rgb
+#     data[:, :, :6] -= np.mean(data[:, :, :6], axis=1, keepdims=True)
+#     # zero-center location
+#     data[:, :, 6:] = data[:, :, 6:] * 2.0 - 1.0
+#
+#     data = np.transpose(data, axes=(0, 2, 1))
+#
+#
+#     # for cpu test
+#     if not torch.cuda.is_available():
+#         data = data[:64, :, :]
+#         labels = labels[:64]
+#
+#     X = torch.from_numpy(data.astype(np.float32))
+#     print('Done\n')
+#
+#
+#     pn_segment = PointNetSegmentation(in_features=in_features, num_classes=13)
+#     if torch.cuda.is_available():
+#         pn_segment = pn_segment.cuda()
+#         pn_segment.load_state_dict(torch.load('../results/segmentation/PointNet_Classifier.pt'))
+#
+#     batch_size = 32
+#     # y = []
+#     pn_segment.train(False)
+#     num_batches = X.shape[0] // batch_size
+#     # for bn in range(num_batches):
+#     #     print('Batch {}/{}'.format(bn, num_batches))
+#     #     y.append(pn_segment(torch.autograd.Variable(X[bn * batch_size: bn * batch_size + batch_size, ...]).cuda())[0].data.max(1)[1]) # batch_size * 4096
+#
+#     # y = [pn_segment(torch.autograd.Variable(X[bn * batch_size: bn * batch_size + batch_size, ...]).cuda())[0].data.max(
+#     #     1)[1].cpu() for bn in range(num_batches)]
+#     y = [pn_segment(torch.autograd.Variable(X))[0].data.max(1)[1] for bn in range(num_batches)]
+#
+#     print(len(y))
+#
+#     t = np.concatenate(y, axis=0)
+#
+#     print(t.shape)
+
+
+import numpy as np
+import pandas as pd
+from pyntcloud import PyntCloud
+
+f = np.load('data_vis.npz')
+
+i = 0
+# positions = np.random.uniform(size=(100, 3)) - 0.5
+positions = f['X'][i].T[:, :3]
+points = pd.DataFrame(positions, columns=['x', 'y', 'z'])
+
+# colors = (np.random.uniform(size=(100, 3)) * 255).astype(np.uint8)
+colors = (f['y'][i].T[:, 3:6] * 255).astype(np.uint8)
+points[['red', 'blue', 'green']] = pd.DataFrame(colors, index=points.index)
+
+cloud = PyntCloud(points)
+cloud.plot()
 
 
