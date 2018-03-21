@@ -111,7 +111,7 @@ class PointNetClassification(torch.nn.Module):
             torch.nn.Linear(in_features=1024, out_features=512, bias=True),
             torch.nn.BatchNorm1d(num_features=512),
             torch.nn.ReLU(inplace=True),
-            # torch.nn.Dropout(p=0.3),
+            torch.nn.Dropout(p=0.3),
 
             torch.nn.Linear(in_features=512, out_features=256, bias=True),
             torch.nn.BatchNorm1d(num_features=256),

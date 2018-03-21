@@ -1,5 +1,5 @@
-# from mpl_toolkits.mplot3d import Axes3D
-# import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 # import trimesh
 import numpy as np
 import torch
@@ -79,6 +79,13 @@ import os, random, time
 #     points = [[float(x) for x in f.readline().strip().split(' ')] for i in xrange(0, N/num_points*num_points, N/num_points)]
 #     f.close()
 #     return points
+
+def data_visualization(points):
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.scatter(np.array(points)[0, :], np.array(points)[1, :], np.array(points)[2, :], s=0.1)
+    plt.show()
+
 def mesh_sample(off_file, num_points):
     with open(off_file, 'r') as f:
         lines = f.readlines()
@@ -93,7 +100,7 @@ def mesh_sample(off_file, num_points):
     vertices = lines[2: num_vertices+2]
     faces = lines[num_vertices+2: num_vertices+2+num_triangles]
 
-    triangles = np.array([[map(float, vertices[int(idx)].strip().split()) for idx in t.strip().split()[1: ]] for t in faces])
+    triangles = np.array([[list(map(float, vertices[int(idx)].strip().split())) for idx in t.strip().split()[1: ]] for t in faces])
 
     area_faces = np.linalg.norm(np.cross(triangles[:, 0, :] - triangles[:, 1, :], triangles[:, 0, :] - triangles[:, 2, :]), ord=2, axis=1)/2
 
@@ -147,36 +154,14 @@ def prepare_data(dataset, cat2lab, dataset_type = '', num_points = 1024):
              dataset_type in root and '.off' in filename]
 
     # random shuffle
-    random.shuffle(paths)
+    # random.shuffle(paths)
 
-    # data, labels = [], []
-    # for root, filename in paths:
-    #     points = read_off(os.path.join(root, filename), num_points)
-    #     if len(points) != 0:
-    #         data.append(points)
-    #         labels.append(cat2lab[root.split('/')[-2]])
     data, labels = [], []
     for i, (root, filename) in enumerate(paths):
         print(i)
 
         data.append(mesh_sample(os.path.join(root, filename), num_points))
         labels.append(cat2lab[root.split('/')[-2]])
-        # file_dir = os.path.join(root, filename)
-        # print file_dir
-        # with open(file_dir, 'r') as f:
-        #     lines = f.readlines()
-        #     f.close()
-        # if lines[0].strip() != 'OFF':
-        #     lines[0] = lines[0].replace('OFF', '')
-        #     lines = ['OFF\n'] + lines
-        #     with open(file_dir, 'w') as f:
-        #         f.writelines(lines)
-        #         f.close()
-
-        # mesh = trimesh.load(file_dir)
-        # samples = sample_surface(mesh, num_points)[0] # num_points x 3
-        # data.append(samples)
-        # labels.append(cat2lab[root.split('/')[-2]])
 
     data = np.array(data)# np.array: num_images x num_points x 3
 
@@ -186,31 +171,41 @@ def prepare_data(dataset, cat2lab, dataset_type = '', num_points = 1024):
     # normalize
     data /= np.max(np.linalg.norm(data, ord=2, axis=2, keepdims=True), axis=1, keepdims=True)
 
-
     return np.transpose(data, axes=(0, 2, 1)), np.array(labels)
 
-# def data_visualization(points):
-#     fig = plt.figure()
-#     ax = Axes3D(fig)
-#     ax.scatter(np.array(points)[0, :], np.array(points)[1, :], np.array(points)[2, :], s=0.1)
-#     plt.show()
 
 if __name__ == '__main__':
-    random.seed(19260817)
-    # torch.manual_seed(19260817)
-    np.random.seed(19260817)
-    dataset = '../dataset/ModelNet40'
-    catset = set([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
-    cat2lab = {c: i for c, i in zip(catset, range(len(catset)))}
-
-
-    since = time.time()
-    data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=1024)
-    data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=1024)
-    print('load raw data takes', time.time() - since, 's')
-
+    # random.seed(19260817)
+    # # torch.manual_seed(19260817)
+    # np.random.seed(19260817)
+    # dataset = '../dataset/ModelNet40'
+    # catset = set([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
+    # cat2lab = {c: i for c, i in zip(catset, range(len(catset)))}
+    #
+    #
     # since = time.time()
-    # np.savez(os.path.join(dataset, 'data_train'), data=data_train, labels=labels_train)
-    # np.savez(os.path.join(dataset, 'data_test'), data=data_test, labels=labels_test)
+    # # data_train, labels_train = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='train', num_points=1024)
+    # data_test, labels_test = prepare_data(dataset=dataset, cat2lab=cat2lab, dataset_type='test', num_points=2048)
+    # print('load raw data takes', time.time() - since, 's')
+    #
+    # since = time.time()
+    # # np.savez(os.path.join(dataset, 'data_train'), data=data_train, labels=labels_train)
+    # np.savez(os.path.join(dataset, 'data_test_2048'), data=data_test, labels=labels_test)
     # print('save data takes', time.time() - since, 's')
+
+    # catset = set([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
+    # cat2lab = {c: i for c, i in zip(catset, range(len(catset)))}
+    data_dir = '../dataset/ModelNet40'
+    dataset = '../dataset/ModelNet40'
+    f = np.load(os.path.join(data_dir, 'data_test_2048.npz'))
+
+    catset = sorted([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
+
+    lab2cat = {i: c for c, i in zip(catset, range(len(catset)))}
+    print(lab2cat)
+    data, labels = f['data'], f['labels']
+
+    for i in range(data.shape[0]):
+        print(lab2cat[labels[i]])
+        data_visualization(data[i])
 

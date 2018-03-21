@@ -80,7 +80,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     f = np.load(os.path.join(data_dir, 'data_train.npz'))
     data, labels = sklearn.utils.shuffle(f['data'], f['labels'])
 
-    in_features = data.shape[-1]
+    in_features = data.shape[1]
 
     # for cpu test
     if not torch.cuda.is_available():
@@ -182,7 +182,7 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
         if acc_valid[-1] > acc_best:
             acc_best = acc_valid[-1]
             # model_best = copy.deepcopy(pn_classify.state_dict())
-            torch.save(pn_classify.state_dict(), '../results/PointNet_Classifier.pt')
+            torch.save(pn_classify.state_dict(), '../results/PointNetClassify.pt')
             np.savez('../results/loss', train=loss_train, valid=loss_valid)
             np.savez('../results/accuracy', train=acc_train, valid=acc_valid)
 
@@ -192,14 +192,8 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print('Best val Accuracy: {:4f}'.format(acc_best))
-    # pn_classify.load_state_dict(model_best)
-
-    # np.savez('loss', loss_train=loss_train, loss_valid=loss_valid)
-    # np.savez('accuracy', acc_train=acc_train, acc_valid=acc_valid)
-    # torch.save(pn_classify.state_dict(), '../models/PointNet_Classifier.pt')
 
 
-# test dimension
 if __name__ == '__main__':
     torch.manual_seed(19270817)
     torch.cuda.manual_seed_all(19270817)

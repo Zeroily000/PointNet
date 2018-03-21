@@ -178,22 +178,9 @@
 
 
 import numpy as np
-import pandas as pd
-from pyntcloud import PyntCloud
 
-f = np.load('data_vis.npz')
+f = np.load('../dataset/Semantic-8/data_train.npz')
+data, labels = f['data'], f['labels']
 
-i = 0
-# positions = np.random.uniform(size=(100, 3)) - 0.5
-positions = f['X'][i].T[:, :3]
-points = pd.DataFrame(positions, columns=['x', 'y', 'z'])
-
-# colors = (np.random.uniform(size=(100, 3)) * 255).astype(np.uint8)
-colors = (f['y'][i].T[:, 3:6] * 255).astype(np.uint8)
-points[['red', 'blue', 'green']] = pd.DataFrame(colors, index=points.index)
-
-cloud = PyntCloud(points)
-cloud.plot()
-
-
-
+print(data.shape)
+print(labels.shape)

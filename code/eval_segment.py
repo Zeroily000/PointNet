@@ -10,7 +10,7 @@ data_dir = '../dataset/S3DIS'
 f = np.load(os.path.join(data_dir, 'data_test.npz'))
 data, labels = sklearn.utils.shuffle(f['data'], f['labels'], random_state=19260817)
 in_features = data.shape[1]
-batch_size=32
+batch_size = 32
 
 if not torch.cuda.is_available():
     data = data[:2*batch_size, ...]
@@ -29,26 +29,30 @@ print('Done')
 
 if torch.cuda.is_available():
     pn_segment = PointNetSegmentation(in_features=in_features, num_classes=13).cuda()
-    pn_segment.load_state_dict(torch.load('../results/segmentation/PointNet_Segment.pt'))
+    pn_segment.load_state_dict(torch.load('../results/segmentation/93.40/PointNetSegment.pt'))
 else:
     pn_segment = PointNetSegmentation(in_features=in_features, num_classes=13)
-    pn_segment.load_state_dict(torch.load('../results/segmentation/PointNet_Segment.pt', map_location=lambda storage, location: storage))
+    pn_segment.load_state_dict(torch.load('../results/segmentation/93.40/PointNetSegment.pt', map_location=lambda storage, location: storage))
 
 
 pn_segment.train(False)
 num_batches = X_test.shape[0] // batch_size
-correct = 0
-y = []
+C = np.zeros((13, 13))
 for bn in range(num_batches):
-    print(bn)
+    print('Batch {}/{}'.format(bn + 1, num_batches))
     X_batch = torch.autograd.Variable(X_test[bn * batch_size: bn * batch_size + batch_size, ...])
     t_batch = t_test[bn * batch_size: bn * batch_size + batch_size, ...]
     if torch.cuda.is_available():
         X_batch = X_batch.cuda()
         t_batch = t_batch.cuda()
     y_batch = pn_segment(X_batch)[0].data.max(1)[1]
-    correct += (y_batch == t_batch).sum()
-    y.append(y_batch.cpu().numpy())
-print('Test Accuracy: {:.4f}'.format(correct / X_test.shape[0] / X_test.shape[2]))
+    for i in range(13):
+        for j in range(13):
+            C[i, j] += np.logical_and(t_batch == i, y_batch == j).sum()
 
-# np.savez('seg_test', X=X_test[:batch_size*num_batches, ...], y=np.concatenate(y, axis=0), t=t_test[:batch_size*num_batches, ...])
+IoU = np.zeros(13)
+for i in range(13):
+    IoU[i] = C[i, i] / (C[i, :].sum() + C[:, i].sum() - C[i, i])
+    print('IoU_{}: {:.4f}'.format(i, IoU[i]))
+print('Mean IoU: {:.4f}'.format(IoU.mean()))
+print('Overall Accuracy: {:.4f}'.format(np.diag(C).sum() / C.sum()))
