@@ -1,13 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
+acc = '93.40/'
 dir = '../results/segmentation/'
-loss = np.load(dir + 'loss.npz')
+loss = np.load(dir + acc + 'loss.npz')
 loss_train = loss['train']
 loss_valid = loss['valid']
 
-acc = np.load(dir + 'accuracy.npz')
+acc = np.load(dir + acc + 'accuracy.npz')
 acc_train = acc['train']
 acc_valid = acc['valid']
 print(acc_valid[-1])
