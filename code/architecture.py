@@ -154,7 +154,7 @@ class PointNetSegmentation(torch.nn.Module):
         _, x, A1, A2 = self.features(x)  # Bx1088xN
         x = self.classifier(x)  # BxmxN
         x = torch.nn.functional.log_softmax(x, dim=1)  # BxmxN
-        return torch.nn.functional.log_softmax(x, dim=1), A1, A2
+        return x, A1, A2
 
 
 # test dimension
