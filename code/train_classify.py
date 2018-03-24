@@ -6,25 +6,6 @@ import sklearn
 from architecture import PointNetClassification
 
 def rot_mat(num_images):
-    # roll = torch.Tensor(num_images, 1, 1).uniform_(0, math.pi)
-    # Rx = torch.cat(
-    #     (torch.cat((torch.ones(num_images, 1, 1), torch.zeros(num_images, 1, 1), torch.zeros(num_images, 1, 1)), 2),
-    #      torch.cat((torch.zeros(num_images, 1, 1), torch.cos(roll), -torch.sin(roll)), 2),
-    #      torch.cat((torch.zeros(num_images, 1, 1), torch.sin(roll), torch.cos(roll)), 2)), 1)
-    #
-    # pitch = torch.Tensor(num_images, 1, 1).uniform_(-np.pi, np.pi)
-    # Ry = torch.cat((torch.cat((torch.cos(pitch), torch.zeros(num_images, 1, 1), torch.sin(pitch)), 2),
-    #                 torch.cat(
-    #                     (torch.zeros(num_images, 1, 1), torch.ones(num_images, 1, 1), torch.zeros(num_images, 1, 1)),
-    #                     2),
-    #                 torch.cat((-torch.sin(pitch), torch.zeros(num_images, 1, 1), torch.cos(pitch)), 2)), 1)
-    #
-    # yaw = torch.Tensor(num_images, 1, 1).uniform_(-np.pi, np.pi)
-    # Rz = torch.cat((torch.cat((torch.cos(yaw), -torch.sin(yaw), torch.zeros(num_images, 1, 1)), 2),
-    #                 torch.cat((torch.sin(yaw), torch.cos(yaw), torch.zeros(num_images, 1, 1)), 2),
-    #                 torch.cat((torch.zeros(num_images, 1, 1), torch.zeros(num_images, 1, 1), torch.ones(num_images, 1, 1)),2)), 1)
-
-    # return torch.bmm(Rx, torch.bmm(Ry, Rz))
     pitch = np.random.uniform(-np.pi, np.pi, num_images)
     Ry = np.zeros((num_images, 3, 3), dtype=np.float32)
     Ry[:, 0, 0] = np.cos(pitch)
@@ -77,15 +58,16 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     # labels: np.array, num_images
     print('Loading data...', end='')
     data_dir = '../dataset/ModelNet40'
-    f = np.load(os.path.join(data_dir, 'data_train.npz'))
+    f = np.load(os.path.join(data_dir, 'data_train_1024.npz'))
     data, labels = sklearn.utils.shuffle(f['data'], f['labels'])
 
     in_features = data.shape[1]
 
-    # for cpu test
+    ########################### for cpu test ###########################
     if not torch.cuda.is_available():
         data = data[:320, :, :]
         labels = labels[:320]
+    ####################################################################
 
     X_train = torch.from_numpy(data[data.shape[0] // 9:, :, :].astype(np.float32))
     t_train = torch.from_numpy(labels[data.shape[0] // 9:].astype(np.int64))
@@ -100,7 +82,6 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
     if torch.cuda.is_available():
         pn_classify = pn_classify.cuda()
 
-    # model_best = copy.deepcopy(pn_classify.state_dict())
 
     optimizer = torch.optim.Adam(params=pn_classify.parameters(), lr=learning_rate)
     criterion = torch.nn.CrossEntropyLoss()
@@ -139,20 +120,9 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
             # data augmentation
             R = rot_mat(batch_size)
             noise = torch.from_numpy(np.clip(np.random.normal(loc=0.0, scale=0.02, size=X_batch.shape), -0.05, 0.05).astype(np.float32))
-            # X_batch = torch.bmm(R, X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :])
-            # noise = torch.normal(means=torch.zeros(X_batch.size()), std=0.02 * torch.ones(X_batch.size()))
-            # noise[noise > 0.05] = 0.05
-            # noise[noise < -0.05] = -0.05
-            #             X_batch = torch.autograd.Variable(X_batch + noise)
-
             X_batch = torch.autograd.Variable(torch.cat((X_batch, torch.bmm(R, X_batch) + noise), 0))
             t_batch = torch.autograd.Variable(t_batch.repeat(2))
 
-
-            # X_batch = torch.autograd.Variable(X_train[idx[bn * batch_size: bn * batch_size + batch_size], :, :])
-            # t_batch = torch.autograd.Variable(t_train[idx[bn * batch_size: bn * batch_size + batch_size]])
-            # I1 = torch.autograd.Variable(torch.zeros(batch_size*2, 3, 3) + torch.eye(3))
-            # I2 = torch.autograd.Variable(torch.zeros(batch_size*2, 64, 64) + torch.eye(64))
             if torch.cuda.is_available():
                 X_batch = X_batch.cuda()
                 t_batch = t_batch.cuda()
@@ -181,10 +151,9 @@ def train_classifier(learning_rate=0.001, regularization=0.001, reshuffle=True,
         cnt = cnt + 1 if early_stop and loss_valid[-1] > loss_valid[-2] else 0
         if acc_valid[-1] > acc_best:
             acc_best = acc_valid[-1]
-            # model_best = copy.deepcopy(pn_classify.state_dict())
-            torch.save(pn_classify.state_dict(), '../results/PointNetClassify.pt')
-            np.savez('../results/loss', train=loss_train, valid=loss_valid)
-            np.savez('../results/accuracy', train=acc_train, valid=acc_valid)
+            torch.save(pn_classify.state_dict(), '../results/classification/PointNetClassify.pt')
+            np.savez('../results/classification/loss', train=loss_train, valid=loss_valid)
+            np.savez('../results/classification/accuracy', train=acc_train, valid=acc_valid)
 
         if cnt >= early_stop:
             break

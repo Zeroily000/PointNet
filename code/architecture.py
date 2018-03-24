@@ -22,7 +22,6 @@ class TNet(torch.nn.Module):
             torch.nn.BatchNorm1d(num_features=1024),
             torch.nn.ReLU(inplace=True),
 
-            # torch.nn.MaxPool1d(kernel_size=num_points)
         )  # Bx1024xN
 
         self.classifier = torch.nn.Sequential(
@@ -42,7 +41,6 @@ class TNet(torch.nn.Module):
         self.classifier[-1].bias.data = torch.eye(in_features).view(1, -1).squeeze()
 
     def forward(self, x):
-        # x = self.features(x)  # Bx1024x1
         x = self.features(x).max(dim=-1, keepdim=True)[0]  # Bx1024x1
         x = torch.squeeze(x, 2)  # Bx1024
         x = self.classifier(x)  # BxK^2
@@ -81,8 +79,6 @@ class Feature3D(torch.nn.Module):
             torch.nn.Conv1d(in_channels=128, out_channels=1024, kernel_size=1),
             torch.nn.BatchNorm1d(num_features=1024),
             torch.nn.ReLU(inplace=True),
-
-            # torch.nn.MaxPool1d(kernel_size=num_points)
         )  # Bx1024xN
 
     def forward(self, x):
@@ -157,11 +153,7 @@ class PointNetSegmentation(torch.nn.Module):
     def forward(self, x):
         _, x, A1, A2 = self.features(x)  # Bx1088xN
         x = self.classifier(x)  # BxmxN
-        # x = torch.nn.functional.log_softmax(x.transpose(0, 1)).transpose(0, 1)  # BxmxN
         x = torch.nn.functional.log_softmax(x, dim=1)  # BxmxN
-        # B, m, N = x.data.shape
-        # x = x.expand(1, B, m, N).transpose(0, 1).transpose(1, 2).transpose(2, 3).contiguous()
-        # return x, A1, A2
         return torch.nn.functional.log_softmax(x, dim=1), A1, A2
 
 

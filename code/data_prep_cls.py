@@ -4,7 +4,6 @@
 
 import numpy as np
 import trimesh
-from trimesh.sample import sample_surface
 import os, time
 
 
@@ -25,22 +24,22 @@ def prepare_data(dataset, cat2lab, dataset_type, num_points = 1024):
     data, labels = [], []
     for i, (root, filename) in enumerate(paths):
         file_dir = os.path.join(root, filename)
-        # with open(file_dir, 'r') as f:
-        #     lines = f.readlines()
-        #     f.close()
-        # if lines[0].strip() != 'OFF':
-        #     lines[0] = lines[0].replace('OFF', '')
-        #     lines = ['OFF\n'] + lines
-        #     with open(file_dir, 'w') as f:
-        #         f.writelines(lines)
-        #         f.close()
+        with open(file_dir, 'r') as f:
+            lines = f.readlines()
+            f.close()
+        if lines[0].strip() != 'OFF':
+            lines[0] = lines[0].replace('OFF', '')
+            lines = ['OFF\n'] + lines
+            with open(file_dir, 'w') as f:
+                f.writelines(lines)
+                f.close()
 
         mesh = trimesh.load(file_dir)
-        samples = sample_surface(mesh, num_points)[0]  # num_points x 3
+        samples = trimesh.sample.sample_surface(mesh, num_points)[0]  # num_points x 3
         data.append(samples)
         labels.append(cat2lab[root.split('/')[-2]])
 
-    data = np.array(data)  # np.array: num_images x num_points x 3
+    data = np.array(data)  # num_images x num_points x 3
 
     # zero-center
     data -= np.mean(data, axis=1, keepdims=True)
@@ -52,7 +51,7 @@ def prepare_data(dataset, cat2lab, dataset_type, num_points = 1024):
 
 
 if __name__ == '__main__':
-    num_points = 2048
+    num_points = 1024
     dataset = '../dataset/ModelNet40'
     cats = sorted([os.path.join(f) for f in os.listdir(dataset) if '.' not in f])
     cat2lab = {c: i for i, c in enumerate(cats)}

@@ -12,7 +12,6 @@ def eval_loss(X, t, batch_size, segment, criterion):
     num_batches = X.shape[0] // batch_size
     loss = 0.0
     for bn in range(num_batches):
-        # print('Batch {}/{}'.format(bn+1, num_batches))
         X_batch = torch.autograd.Variable(X[bn * batch_size: bn * batch_size + batch_size, ...])
         t_batch = torch.autograd.Variable(t[bn * batch_size: bn * batch_size + batch_size, ...])
         if torch.cuda.is_available():
@@ -28,7 +27,6 @@ def eval_acc(X, t, batch_size, segment):
     num_batches = X.shape[0] // batch_size
     correct = 0.0
     for bn in range(num_batches):
-        # print('Batch {}/{}'.format(bn+1, num_batches))
         X_batch = torch.autograd.Variable(X[bn * batch_size: bn * batch_size + batch_size, ...])
         t_batch = t[bn * batch_size: bn * batch_size + batch_size, ...]
         if torch.cuda.is_available():
@@ -58,10 +56,11 @@ def train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
     # zero-center location
     data[:, 6:, :] = data[:, 6:, :] * 2.0 - 1.0
 
-    # for cpu test
+    ########################### for cpu test ###########################
     if not torch.cuda.is_available():
         data = data[:320, ...]
         labels = labels[:320]
+    ####################################################################
 
     X_train = torch.from_numpy(data[data.shape[0] // 8:, ...].astype(np.float32))
     t_train = torch.from_numpy(labels[data.shape[0] // 8:, ...].astype(np.int64))
@@ -104,7 +103,7 @@ def train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
         scheduler.step()
         pn_segment.train(True)
         for bn in range(num_batches):
-            print('Batch {}/{}'.format(bn+1, num_batches))
+            # print('Batch {}/{}'.format(bn+1, num_batches))
             X_batch = torch.autograd.Variable(X_train[idx[bn * batch_size: bn * batch_size + batch_size], ...])
             t_batch = torch.autograd.Variable(t_train[idx[bn * batch_size: bn * batch_size + batch_size], ...])
             I1 = torch.autograd.Variable(torch.eye(in_features))
@@ -138,9 +137,9 @@ def train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
         cnt = cnt + 1 if early_stop and loss_valid[-1] > loss_valid[-2] else 0
         if acc_valid[-1] > acc_best:
             acc_best = acc_valid[-1]
-            torch.save(pn_segment.state_dict(), '../results/PointNetSegment.pt')
-            np.savez('../results/loss', train=loss_train, valid=loss_valid)
-            np.savez('../results/accuracy', train=acc_train, valid=acc_valid)
+            torch.save(pn_segment.state_dict(), '../results/segmentation/PointNetSegment.pt')
+            np.savez('../results/segmentation/loss', train=loss_train, valid=loss_valid)
+            np.savez('../results/segmentation/accuracy', train=acc_train, valid=acc_valid)
 
         if cnt >= early_stop:
             break
@@ -150,7 +149,6 @@ def train_segment(learning_rate=0.001, regularization=0.001, reshuffle=True,
     print('Best val Accuracy: {:4f}'.format(acc_best))
 
 
-# test dimension
 if __name__ == '__main__':
     torch.manual_seed(19260817)
     torch.cuda.manual_seed_all(19260817)
