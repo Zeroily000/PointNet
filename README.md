@@ -25,8 +25,8 @@ Evaluate:
 	python eval_classify.py
 
 
-## Classification
-Train classification network:
+## Segmentation
+Train segmentation network:
 
     python train_segment.py
 
